@@ -39,3 +39,36 @@ back/.vscode/
 ### OpenAPI Generator ###
 back/.openapi-generator/
 back/src/main/java-generated/
+
+# Frontend (Angular)
+front/node_modules/
+front/dist/
+front/tmp/
+front/out-tsc/
+front/bazel-out/
+front/.angular/cache/
+front/.sass-cache/
+front/.history/
+front/.vscode/*
+!front/.vscode/settings.json
+!front/.vscode/tasks.json
+!front/.vscode/launch.json
+!front/.vscode/extensions.json
+front/.idea/
+front/.project
+front/.classpath
+front/.c9/
+front/*.launch
+front/.settings/
+front/*.sublime-workspace
+front/connect.lock
+front/coverage/
+front/libpeerconnection.log
+front/testem.log
+front/typings/
+front/.npm/
+front/.yarn/
+front/npm-debug.log
+front/yarn-error.log
+front/.DS_Store
+front/Thumbs.db
