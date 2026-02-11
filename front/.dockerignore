@@ -1,0 +1,10 @@
+node_modules
+dist
+.angular
+.npm
+.yarn
+coverage
+*.log
+.git
+.gitignore
+.DS_Store
