@@ -236,6 +236,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd back
+          if [ ! -f package.json ]; then
+            npm init -y >/dev/null 2>&1
+          fi
+          npm install --no-save \
+            semantic-release \
+            @semantic-release/commit-analyzer \
+            @semantic-release/release-notes-generator \
+            @semantic-release/github \
+            @semantic-release/exec
           npx -p semantic-release \
             -p @semantic-release/commit-analyzer \
             -p @semantic-release/release-notes-generator \
@@ -257,6 +266,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd front
+          npm install --no-save \
+            semantic-release \
+            @semantic-release/commit-analyzer \
+            @semantic-release/release-notes-generator \
+            @semantic-release/github \
+            @semantic-release/exec
           npx -p semantic-release \
             -p @semantic-release/commit-analyzer \
             -p @semantic-release/release-notes-generator \
