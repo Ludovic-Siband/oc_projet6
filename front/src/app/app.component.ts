@@ -8,6 +8,9 @@ import { RouterOutlet } from '@angular/router';
   styleUrls: ['./app.component.scss'],
 })
 export class AppComponent {
+  /**
+   * Application display title.
+   */
   public title = 'olympic-games-starter';
 
   constructor() {}
