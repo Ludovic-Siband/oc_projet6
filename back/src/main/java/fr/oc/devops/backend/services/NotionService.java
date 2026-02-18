@@ -23,6 +23,9 @@ public class NotionService {
     @Autowired
     private ModelMapper mapper;
 
+    /**
+     * Create a Notion domain object from the provided payload.
+     */
     public Notion create(Notion notion) {
 
         NotionModel model = mapper.map(notion, NotionModel.class);
