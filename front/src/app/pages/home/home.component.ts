@@ -9,6 +9,9 @@ import { Olympic } from 'src/app/core/models/Olympic';
   styleUrls: ['./home.component.scss'],
 })
 export class HomeComponent {
+  /**
+   * Olympic entries provided by the parent component.
+   */
   public readonly olympics: InputSignal<Array<Olympic>> =
     input.required<Array<Olympic>>();
 
