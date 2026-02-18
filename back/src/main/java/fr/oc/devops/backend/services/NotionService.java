@@ -14,6 +14,9 @@ import java.util.stream.StreamSupport;
 @Service
 public class NotionService {
 
+    /**
+     * Service handling Notion domain operations.
+     */
     @Autowired
     private NotionRepository repository;
 
