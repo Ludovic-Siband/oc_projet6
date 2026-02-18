@@ -1,0 +1,262 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            front/package-lock.json
+
+      - name: Run tests
+        run: bash ./run-tests.sh
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Unit Tests
+          path: test-results/**/*.xml
+          reporter: java-junit
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image metadata
+        run: |
+          echo "REPO=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+          echo "REF_NAME=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
+          echo "SHA_SHORT=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: Detect changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "back_changed=true" >> "$GITHUB_OUTPUT"
+            echo "front_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git diff --name-only "$BASE_SHA" "$GITHUB_SHA" > /tmp/changed_files.txt
+
+          back_changed=false
+          front_changed=false
+
+          if grep -qE '^back/' /tmp/changed_files.txt; then
+            back_changed=true
+          fi
+
+          if grep -qE '^front/' /tmp/changed_files.txt; then
+            front_changed=true
+          fi
+
+          if [ "$back_changed" = "true" ] || [ "$front_changed" = "true" ]; then
+            echo "any_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "any_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "back_changed=$back_changed" >> "$GITHUB_OUTPUT"
+          echo "front_changed=$front_changed" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build (no changes)
+        if: ${{ steps.changes.outputs.any_changed != 'true' }}
+        run: echo "No changes in back/ or front/ - skipping build."
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.changes.outputs.any_changed == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: ${{ steps.changes.outputs.any_changed == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        if: ${{ hashFiles('back/Dockerfile') != '' && steps.changes.outputs.back_changed == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: back
+          file: back/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ env.REPO }}/back:${{ env.REF_NAME }}-${{ env.SHA_SHORT }}
+
+      - name: Build and push frontend image
+        if: ${{ hashFiles('front/Dockerfile') != '' && steps.changes.outputs.front_changed == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: front
+          file: front/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ env.REPO }}/front:${{ env.REF_NAME }}-${{ env.SHA_SHORT }}
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: ${{ github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set image metadata
+        run: |
+          echo "REPO=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Detect changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="${{ github.event.before }}"
+
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "back_changed=true" >> "$GITHUB_OUTPUT"
+            echo "front_changed=true" >> "$GITHUB_OUTPUT"
+            echo "any_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git diff --name-only "$BASE_SHA" "$GITHUB_SHA" > /tmp/changed_files.txt
+
+          back_changed=false
+          front_changed=false
+
+          if grep -qE '^back/' /tmp/changed_files.txt; then
+            back_changed=true
+          fi
+
+          if grep -qE '^front/' /tmp/changed_files.txt; then
+            front_changed=true
+          fi
+
+          if [ "$back_changed" = "true" ] || [ "$front_changed" = "true" ]; then
+            echo "any_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "any_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "back_changed=$back_changed" >> "$GITHUB_OUTPUT"
+          echo "front_changed=$front_changed" >> "$GITHUB_OUTPUT"
+
+      - name: Skip release (no changes)
+        if: ${{ steps.changes.outputs.any_changed != 'true' }}
+        run: echo "No changes in back/ or front/ - skipping release."
+
+      - name: Set up Node
+        if: ${{ steps.changes.outputs.any_changed == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.changes.outputs.any_changed == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: ${{ steps.changes.outputs.any_changed == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release backend
+        if: ${{ steps.changes.outputs.back_changed == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd back
+          npx -p semantic-release \
+            -p @semantic-release/commit-analyzer \
+            -p @semantic-release/release-notes-generator \
+            -p @semantic-release/github \
+            -p @semantic-release/exec \
+            semantic-release --extends .releaserc.json
+
+      - name: Build and push backend release image
+        if: ${{ steps.changes.outputs.back_changed == 'true' && hashFiles('back/.semantic-release-version') != '' }}
+        run: |
+          VERSION=$(cat back/.semantic-release-version)
+          docker build -f back/Dockerfile -t ghcr.io/${REPO}/back:${VERSION} back
+          docker push ghcr.io/${REPO}/back:${VERSION}
+
+      - name: Release frontend
+        if: ${{ steps.changes.outputs.front_changed == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd front
+          npx -p semantic-release \
+            -p @semantic-release/commit-analyzer \
+            -p @semantic-release/release-notes-generator \
+            -p @semantic-release/github \
+            -p @semantic-release/exec \
+            semantic-release --extends .releaserc.json
+
+      - name: Build and push frontend release image
+        if: ${{ steps.changes.outputs.front_changed == 'true' && hashFiles('front/.semantic-release-version') != '' }}
+        run: |
+          VERSION=$(cat front/.semantic-release-version)
+          docker build -f front/Dockerfile -t ghcr.io/${REPO}/front:${VERSION} front
+          docker push ghcr.io/${REPO}/front:${VERSION}

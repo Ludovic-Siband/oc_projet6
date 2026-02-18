@@ -1,0 +1,24 @@
+{
+  "branches": ["main"],
+  "tagFormat": "front-v${version}",
+  "plugins": [
+    ["@semantic-release/commit-analyzer", {
+      "preset": "conventionalcommits",
+      "releaseRules": [
+        { "type": "feat", "scope": "front", "release": "minor" },
+        { "type": "fix", "scope": "front", "release": "patch" },
+        { "type": "perf", "scope": "front", "release": "patch" },
+        { "type": "revert", "scope": "front", "release": "patch" },
+        { "type": "docs", "scope": "front", "release": "patch" },
+        { "type": "refactor", "scope": "front", "release": "patch" },
+        { "type": "chore", "scope": "front", "release": "patch" },
+        { "type": "test", "scope": "front", "release": "patch" },
+        { "type": "build", "scope": "front", "release": "patch" },
+        { "type": "ci", "scope": "front", "release": "patch" }
+      ]
+    }],
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/github",
+    ["@semantic-release/exec", {"prepareCmd": "echo ${nextRelease.version} > .semantic-release-version"}]
+  ]
+}
