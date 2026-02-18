@@ -244,7 +244,8 @@ jobs:
             @semantic-release/commit-analyzer \
             @semantic-release/release-notes-generator \
             @semantic-release/github \
-            @semantic-release/exec
+            @semantic-release/exec \
+            conventional-changelog-conventionalcommits
           npx -p semantic-release \
             -p @semantic-release/commit-analyzer \
             -p @semantic-release/release-notes-generator \
@@ -271,7 +272,8 @@ jobs:
             @semantic-release/commit-analyzer \
             @semantic-release/release-notes-generator \
             @semantic-release/github \
-            @semantic-release/exec
+            @semantic-release/exec \
+            conventional-changelog-conventionalcommits
           npx -p semantic-release \
             -p @semantic-release/commit-analyzer \
             -p @semantic-release/release-notes-generator \
