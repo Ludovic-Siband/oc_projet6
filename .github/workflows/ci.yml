@@ -241,7 +241,7 @@ jobs:
             -p @semantic-release/release-notes-generator \
             -p @semantic-release/github \
             -p @semantic-release/exec \
-            semantic-release --extends .releaserc.json
+            semantic-release --extends ./.releaserc.json
 
       - name: Build and push backend release image
         if: ${{ steps.changes.outputs.back_changed == 'true' && hashFiles('back/.semantic-release-version') != '' }}
@@ -262,7 +262,7 @@ jobs:
             -p @semantic-release/release-notes-generator \
             -p @semantic-release/github \
             -p @semantic-release/exec \
-            semantic-release --extends .releaserc.json
+            semantic-release --extends ./.releaserc.json
 
       - name: Build and push frontend release image
         if: ${{ steps.changes.outputs.front_changed == 'true' && hashFiles('front/.semantic-release-version') != '' }}
